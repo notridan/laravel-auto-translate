@@ -15,12 +15,12 @@
             "role": "Developer"
         }
     ],
-    "repositories" : {
+    "repositories" : [
         {
             "type": "vcs",
             "url": "https://github.com/lauhakari/laravel-langman"
         }
-    },
+    ],
     "require": {
         "php": "^7.2",
         "google/cloud": "^0.155.0",

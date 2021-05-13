@@ -54,7 +54,10 @@ class MissingCommand extends Command
             $missing = $this->autoTranslator->getMissingTranslations($targetLanguage);
             $missingCount += $missing->count();
             $strLen += $missing->map(function ($value) {
-                return strlen($value);
+                if(!is_object($value)){
+                    return strlen($value);
+                }
+                return 0;
             })->sum();
             $this->line('Found '.$missing->count().' missing keys in '.$targetLanguage);
         }
@@ -76,7 +79,6 @@ class MissingCommand extends Command
 
         foreach ($targetLanguages as $targetLanguage) {
             $missing = $this->autoTranslator->getMissingTranslations($targetLanguage);
-
             $translated = $this->autoTranslator->translate($targetLanguage, $missing, function () use ($bar) {
                 $bar->advance();
             });

@@ -39,6 +39,11 @@ class AutoTranslate
             $aReturn[$fileKeyName] = $allTranslations;
         }
 
+        if(file_exists(config('auto-translate.path') . DIRECTORY_SEPARATOR . $lang . '.json')){
+            $json = file_get_contents(config('auto-translate.path') . DIRECTORY_SEPARATOR . $lang . '.json');
+            $translations = (array)json_decode($json);
+            $aReturn['strings_as_keys'] = $translations;
+        }
         return $aReturn;
     }
 
@@ -73,9 +78,18 @@ class AutoTranslate
 
             $variables = $this->findVariables($value);
 
+            $masked = array();
+            $count = 0;
+            foreach ($variables as $set) {
+                foreach ($set as $var) {
+                    $count++;
+                    $masked[$var] = '___' . $count . '__';
+                    $value = str_replace($var, $masked[$var],$value );
+                }
+            }
             $dottedSource[$key] = is_string($value) ? $this->translator->translate($value) : $value;
 
-            $dottedSource[$key] = $this->replaceTranslatedVariablesWithOld($variables, $dottedSource[$key]);
+            $dottedSource[$key] = $this->replaceTranslatedVariablesWithOld($masked, $dottedSource[$key]);
 
             if ($callbackAfterEachTranslation) {
                 $callbackAfterEachTranslation();
@@ -96,15 +110,12 @@ class AutoTranslate
         return $m;
     }
 
-    public function replaceTranslatedVariablesWithOld($variables, $string)
+    public function replaceTranslatedVariablesWithOld($masked, $string)
     {
-        if (isset($variables[0])) {
-            $replacements = $variables[0];
-
-            return preg_replace_callback('/:\S+/', function ($matches) use (&$replacements) {
-                return array_shift($replacements);
-            }, $string);
+        foreach ($masked as $var => $mask) {
+            $string = str_replace($mask, $var, $string);
         }
+        return $string;
     }
 
     public function fillLanguageFiles(string $language, array $data)
@@ -115,9 +126,38 @@ class AutoTranslate
                     $language => $item,
                 ];
             }, $translations);
-
-            $this->manager->fillKeys($languageFileKey, $translations);
+            if ($languageFileKey != 'strings_as_keys'){
+                $this->manager->fillKeys($languageFileKey, $translations);
+            }else{
+                $this->fillStringsAsKeys($language,$data);
+            }
         }
+    }
+
+
+    public function fillStringsAsKeys(string $language, array $keys)
+    {
+        $translations = array();
+
+        // for some reason, sometimes the translations themselves are an array, reduce that
+        foreach ($keys['strings_as_keys'] as $key => $value) {
+            if(is_array($value)){
+                $value = array_pop($value);
+            }
+            $translations[$key] = $value;
+        }
+
+        $filePath = config('auto-translate.path') . DIRECTORY_SEPARATOR . $language . '.json';
+        if (file_exists($filePath)){
+            $json = file_get_contents($filePath);
+            $existing = (array)json_decode($json);
+        }else{
+            $existing = array();
+        }
+
+        $newContent = array_replace_recursive($existing, $translations);
+
+        file_put_contents($filePath, json_encode($newContent,JSON_PRETTY_PRINT));
     }
 
     public function array_undot(array $dottedArray, array $initialArray = []) : array

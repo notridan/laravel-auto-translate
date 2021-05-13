@@ -38,6 +38,6 @@ class GoogleCloudTranslator implements TranslatorInterface
             'target' => $this->target,
         ]);
 
-        return $result['text'];
+        return html_entity_decode($result['text'],ENT_QUOTES);
     }
 }
